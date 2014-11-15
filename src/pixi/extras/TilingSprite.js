@@ -22,7 +22,7 @@ PIXI.TilingSprite = function(texture, width, height)
      * @property width
      * @type Number
      */
-    this.width = width || 100;
+    this._width = width || 100;
 
     /**
      * The height of the tiling sprite
@@ -30,7 +30,7 @@ PIXI.TilingSprite = function(texture, width, height)
      * @property height
      * @type Number
      */
-    this.height = height || 100;
+    this._height = height || 100;
 
     /**
      * The scaling of the image that is being tiled
@@ -82,6 +82,9 @@ PIXI.TilingSprite = function(texture, width, height)
      * @default PIXI.blendModes.NORMAL;
      */
     this.blendMode = PIXI.blendModes.NORMAL;
+
+    
+
 };
 
 // constructor
@@ -141,21 +144,22 @@ PIXI.TilingSprite.prototype.setTexture = function(texture)
 PIXI.TilingSprite.prototype._renderWebGL = function(renderSession)
 {
     if (this.visible === false || this.alpha === 0) return;
-    
     var i,j;
 
-    if (this.mask)
+    if (this._mask)
     {
         renderSession.spriteBatch.stop();
         renderSession.maskManager.pushMask(this.mask, renderSession);
         renderSession.spriteBatch.start();
     }
 
-    if (this.filters)
+    if (this._filters)
     {
         renderSession.spriteBatch.flush();
         renderSession.filterManager.pushFilter(this._filterBlock);
     }
+
+   
 
     if (!this.tilingTexture || this.refreshTexture)
     {
@@ -173,7 +177,6 @@ PIXI.TilingSprite.prototype._renderWebGL = function(renderSession)
     {
         renderSession.spriteBatch.renderTilingSprite(this);
     }
-
     // simple render children!
     for (i=0,j=this.children.length; i<j; i++)
     {
@@ -182,8 +185,8 @@ PIXI.TilingSprite.prototype._renderWebGL = function(renderSession)
 
     renderSession.spriteBatch.stop();
 
-    if (this.filters) renderSession.filterManager.popFilter();
-    if (this.mask) renderSession.maskManager.popMask(renderSession);
+    if (this._filters) renderSession.filterManager.popFilter();
+    if (this._mask) renderSession.maskManager.popMask(this._mask, renderSession);
     
     renderSession.spriteBatch.start();
 };
@@ -212,7 +215,14 @@ PIXI.TilingSprite.prototype._renderCanvas = function(renderSession)
 
     var i,j;
 
-    context.setTransform(transform.a, transform.c, transform.b, transform.d, transform.tx , transform.ty);
+    var resolution = renderSession.resolution;
+
+    context.setTransform(transform.a * resolution,
+                         transform.c * resolution,
+                         transform.b * resolution,
+                         transform.d * resolution,
+                         transform.tx * resolution,
+                         transform.ty * resolution);
 
     if (!this.__tilePattern ||  this.refreshTexture)
     {
@@ -241,20 +251,19 @@ PIXI.TilingSprite.prototype._renderCanvas = function(renderSession)
     tilePosition.x %= this.tilingTexture.baseTexture.width;
     tilePosition.y %= this.tilingTexture.baseTexture.height;
 
-    // offset
+    // offset - make sure to account for the anchor point..
     context.scale(tileScale.x,tileScale.y);
-    context.translate(tilePosition.x, tilePosition.y);
+    context.translate(tilePosition.x + (this.anchor.x * -this._width), tilePosition.y + (this.anchor.y * -this._height));
 
     context.fillStyle = this.__tilePattern;
 
-    // make sure to account for the anchor point..
-    context.fillRect(-tilePosition.x + (this.anchor.x * -this._width),
-                    -tilePosition.y + (this.anchor.y * -this._height),
+    context.fillRect(-tilePosition.x,
+                    -tilePosition.y,
                     this._width / tileScale.x,
                     this._height / tileScale.y);
 
     context.scale(1 / tileScale.x, 1 / tileScale.y);
-    context.translate(-tilePosition.x, -tilePosition.y);
+    context.translate(-tilePosition.x + (this.anchor.x * this._width), -tilePosition.y + (this.anchor.y * this._height));
 
     if (this._mask)
     {
@@ -346,6 +355,21 @@ PIXI.TilingSprite.prototype.getBounds = function()
     return bounds;
 };
 
+
+
+/**
+ * When the texture is updated, this event will fire to update the scale and frame
+ *
+ * @method onTextureUpdate
+ * @param event
+ * @private
+ */
+PIXI.TilingSprite.prototype.onTextureUpdate = function()
+{
+   // overriding the sprite version of this!
+};
+
+
 /**
 * 
 * @method generateTilingTexture
@@ -356,7 +380,7 @@ PIXI.TilingSprite.prototype.generateTilingTexture = function(forcePowerOfTwo)
 {
     if (!this.texture.baseTexture.hasLoaded) return;
 
-    var texture = this.texture;
+    var texture = this.originalTexture || this.texture;
     var frame = texture.frame;
     var targetWidth, targetHeight;
 
@@ -433,5 +457,9 @@ PIXI.TilingSprite.prototype.generateTilingTexture = function(forcePowerOfTwo)
     }
 
     this.refreshTexture = false;
+    
+    this.originalTexture = this.texture;
+    this.texture = this.tilingTexture;
+    
     this.tilingTexture.baseTexture._powerOf2 = true;
 };

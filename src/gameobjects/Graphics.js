@@ -9,7 +9,7 @@
 *
 * @class Phaser.Graphics
 * @constructor
-*
+* @extends PIXI.Graphics
 * @param {Phaser.Game} game Current game instance.
 * @param {number} x - X position of the new graphics object.
 * @param {number} y - Y position of the new graphics object.
@@ -104,7 +104,7 @@ Phaser.Graphics.prototype.preUpdate = function () {
         this.renderable = this.game.world.camera.screenView.intersects(this.getBounds());
     }
 
-    this.world.setTo(this.game.camera.x + this.worldTransform[2], this.game.camera.y + this.worldTransform[5]);
+    this.world.setTo(this.game.camera.x + this.worldTransform.tx, this.game.camera.y + this.worldTransform.ty);
 
     if (this.visible)
     {
@@ -191,24 +191,6 @@ Phaser.Graphics.prototype.destroy = function(destroyChildren) {
     this.game = null;
 
     this._cache[8] = 0;
-
-};
-
-/*
-* Draws a {Phaser.Polygon} or a {PIXI.Polygon} filled
-*
-* @method Phaser.Graphics.prototype.drawPolygon
-*/
-Phaser.Graphics.prototype.drawPolygon = function (poly) {
-
-    this.moveTo(poly.points[0].x, poly.points[0].y);
-
-    for (var i = 1; i < poly.points.length; i += 1)
-    {
-        this.lineTo(poly.points[i].x, poly.points[i].y);
-    }
-
-    this.lineTo(poly.points[0].x, poly.points[0].y);
 
 };
 
